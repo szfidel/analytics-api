@@ -75,5 +75,4 @@ class EventBucketSchema(SQLModel):
     agent_id: Optional[str] = None
     avg_emotional_tone: Optional[float] = 0.0
     avg_drift_score: Optional[float] = 0.0
-    escalate_count: int = 0
     total_count: int = 0

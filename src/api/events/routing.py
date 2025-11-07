@@ -1,27 +1,16 @@
-import os
-from datetime import datetime, timedelta, timezone
 from typing import List
 
 from api.db.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import case, func
+from sqlalchemy import func
 from sqlmodel import Session, select
 from timescaledb.hyperfunctions import time_bucket
 
-from .models import EventBucketSchema, EventCreateSchema, EventModel, get_utc_now
+from .models import EventBucketSchema, EventCreateSchema, EventModel
 
 router = APIRouter()
 
-DEFAULT_SIGNAL_TYPES = [
-    "conversation",
-    "alert",
-    "escalation",
-    "check_in",
-    "status_update",
-    "error",
-    "warning",
-    "info",
-]
+DEFAULT_SIGNAL_TYPES = ["relational", "emotional", "behavioral"]
 
 
 # Get data here
@@ -31,7 +20,7 @@ DEFAULT_SIGNAL_TYPES = [
 def read_events(
     duration: str = Query(default="1 day"),
     signal_types: List[str] = Query(default=None),
-    agent_ids: List[str] = Query(default=None),
+    # agent_ids: List[str] = Query(default=None),
     session: Session = Depends(get_session),
 ):
     # a bunch of items in a table
@@ -45,11 +34,10 @@ def read_events(
     query = (
         select(
             bucket.label("bucket"),
-            EventModel.signal_type,
-            EventModel.agent_id,
+            EventModel.signal_type.label("signal_type"),
+            EventModel.agent_id.label("agent_id"),
             func.avg(EventModel.emotional_tone).label("avg_emotional_tone"),
             func.avg(EventModel.drift_score).label("avg_drift_score"),
-            # func.sum(func.case((EventModel.escalate_flag > 0, 1), else_=0)).label("escalate_count"),
             func.count().label("total_count"),
         )
         .where(EventModel.signal_type.in_(lookup_signal_types))
@@ -65,33 +53,8 @@ def read_events(
         )
     )
 
-    query2 = (
-        select(
-            bucket.label("bucket"),
-            EventModel.signal_type,
-            EventModel.agent_id,
-            func.avg(EventModel.emotional_tone).label("avg_emotional_tone"),
-            func.avg(EventModel.drift_score).label("avg_drift_score"),
-            func.sum(func.case((EventModel.escalate_flag > 0, 1), else_=0)).label(
-                "escalate_count"
-            ),
-            func.count().label("total_count"),
-        )
-        .where(EventModel.signal_type.in_(lookup_signal_types))
-        .group_by(
-            bucket,
-            EventModel.signal_type,
-            EventModel.agent_id,
-        )
-        .order_by(
-            bucket,
-            EventModel.signal_type,
-            EventModel.agent_id,
-        )
-    )
-
-    if agent_ids and isinstance(agent_ids, list) and len(agent_ids) > 0:
-        query = query.where(EventModel.agent_id.in_(agent_ids))
+    # if agent_ids and isinstance(agent_ids, list) and len(agent_ids) > 0:
+    #    query = query.where(EventModel.agent_id.in_(agent_ids))
 
     results = session.exec(query).fetchall()
     return results
