@@ -1,81 +1,109 @@
 import os
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select
-from sqlalchemy import case, func
-from timescaledb.hyperfunctions import time_bucket
 from datetime import datetime, timedelta, timezone
-from api.db.session import get_session
+from typing import List
 
-from .models import (
-    EventModel, 
-    EventBucketSchema, 
-    EventCreateSchema,
-    get_utc_now
-)
+from api.db.session import get_session
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import case, func
+from sqlmodel import Session, select
+from timescaledb.hyperfunctions import time_bucket
+
+from .models import EventBucketSchema, EventCreateSchema, EventModel, get_utc_now
+
 router = APIRouter()
 
-DEFAULT_LOOKUP_PAGES = [
-        "/", "/about", "/pricing", "/contact", 
-        "/blog", "/products", "/login", "/signup",
-        "/dashboard", "/settings"
-    ]
+DEFAULT_SIGNAL_TYPES = [
+    "conversation",
+    "alert",
+    "escalation",
+    "check_in",
+    "status_update",
+    "error",
+    "warning",
+    "info",
+]
+
 
 # Get data here
 # List View
 # GET /api/events/
 @router.get("/", response_model=List[EventBucketSchema])
 def read_events(
-        duration: str = Query(default="1 day"),
-        pages: List = Query(default=None),
-        session: Session = Depends(get_session)
-    ):
+    duration: str = Query(default="1 day"),
+    signal_types: List[str] = Query(default=None),
+    agent_ids: List[str] = Query(default=None),
+    session: Session = Depends(get_session),
+):
     # a bunch of items in a table
-    os_case = case(
-        (EventModel.user_agent.ilike('%windows%'), 'Windows'),
-        (EventModel.user_agent.ilike('%macintosh%'), 'MacOS'),
-        (EventModel.user_agent.ilike('%iphone%'), 'iOS'),
-        (EventModel.user_agent.ilike('%android%'), 'Android'),
-        (EventModel.user_agent.ilike('%linux%'), 'Linux'),
-        else_='Other'
-    ).label('operating_system')
-
     bucket = time_bucket(duration, EventModel.time)
-    lookup_pages = pages if isinstance(pages, list) and len(pages) > 0 else DEFAULT_LOOKUP_PAGES
+    lookup_signal_types = (
+        signal_types
+        if isinstance(signal_types, list) and len(signal_types) > 0
+        else DEFAULT_SIGNAL_TYPES
+    )
+
     query = (
         select(
-            bucket.label('bucket'),
-            os_case,
-            EventModel.page.label('page'),
-            func.avg(EventModel.duration).label("avg_duration"),
-            func.count().label('count')
+            bucket.label("bucket"),
+            EventModel.signal_type,
+            EventModel.agent_id,
+            func.avg(EventModel.emotional_tone).label("avg_emotional_tone"),
+            func.avg(EventModel.drift_score).label("avg_drift_score"),
+            # func.sum(func.case((EventModel.escalate_flag > 0, 1), else_=0)).label("escalate_count"),
+            func.count().label("total_count"),
         )
-        .where(
-            EventModel.page.in_(lookup_pages)
-        )
+        .where(EventModel.signal_type.in_(lookup_signal_types))
         .group_by(
             bucket,
-            os_case,
-            EventModel.page,
+            EventModel.signal_type,
+            EventModel.agent_id,
         )
         .order_by(
             bucket,
-            os_case,
-            EventModel.page,
+            EventModel.signal_type,
+            EventModel.agent_id,
         )
     )
+
+    query2 = (
+        select(
+            bucket.label("bucket"),
+            EventModel.signal_type,
+            EventModel.agent_id,
+            func.avg(EventModel.emotional_tone).label("avg_emotional_tone"),
+            func.avg(EventModel.drift_score).label("avg_drift_score"),
+            func.sum(func.case((EventModel.escalate_flag > 0, 1), else_=0)).label(
+                "escalate_count"
+            ),
+            func.count().label("total_count"),
+        )
+        .where(EventModel.signal_type.in_(lookup_signal_types))
+        .group_by(
+            bucket,
+            EventModel.signal_type,
+            EventModel.agent_id,
+        )
+        .order_by(
+            bucket,
+            EventModel.signal_type,
+            EventModel.agent_id,
+        )
+    )
+
+    if agent_ids and isinstance(agent_ids, list) and len(agent_ids) > 0:
+        query = query.where(EventModel.agent_id.in_(agent_ids))
+
     results = session.exec(query).fetchall()
     return results
+
 
 # SEND DATA HERE
 # create view
 # POST /api/events/
 @router.post("/", response_model=EventModel)
-def create_event(
-        payload:EventCreateSchema, 
-        session: Session = Depends(get_session)):
+def create_event(payload: EventCreateSchema, session: Session = Depends(get_session)):
     # a bunch of items in a table
-    data = payload.model_dump() # payload -> dict -> pydantic
+    data = payload.model_dump()  # payload -> dict -> pydantic
     obj = EventModel.model_validate(data)
     session.add(obj)
     session.commit()
@@ -85,7 +113,7 @@ def create_event(
 
 # GET /api/events/12
 @router.get("/{event_id}", response_model=EventModel)
-def get_event(event_id:int, session: Session = Depends(get_session)):
+def get_event(event_id: int, session: Session = Depends(get_session)):
     # a single row
     query = select(EventModel).where(EventModel.id == event_id)
     result = session.exec(query).first()
