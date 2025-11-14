@@ -1,13 +1,7 @@
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import datetime
 
-# from pydantic import BaseModel, Field
-import sqlmodel
 from sqlmodel import Field, SQLModel
 from timescaledb import TimescaleModel
-from timescaledb.utils import get_utc_now
-
-# page visits at any given time
 
 
 class EventModel(TimescaleModel, table=True):
@@ -15,15 +9,15 @@ class EventModel(TimescaleModel, table=True):
 
     # id: int = Field(default=None, primary_key=True)
     # timestamp: datetime = Field(index=True)  # TimescaleDB time column
-    user_id: Optional[str] = Field(default=None, index=True)
-    agent_id: Optional[str] = Field(default=None, index=True)
-    signal_type: Optional[str] = Field(default=None, index=True)
-    emotional_tone: Optional[float] = Field(default=None)
-    drift_score: Optional[float] = Field(default=None)
+    user_id: str | None = Field(default=None, index=True)
+    agent_id: str | None = Field(default=None, index=True)
+    signal_type: str | None = Field(default=None, index=True)
+    emotional_tone: float | None = Field(default=None)
+    drift_score: float | None = Field(default=None)
     escalate_flag: int = Field(default=0)  # NOT NULL constraint
-    payload: Optional[str] = Field(default=None, index=True)  # JSON type
-    relationship_context: Optional[str] = Field(default=None)
-    diagnostic_notes: Optional[str] = Field(default=None)
+    payload: str | None = Field(default=None, index=True)  # JSON type
+    relationship_context: str | None = None
+    diagnostic_notes: str | None = None
 
     # TimescaleDB hypertable configuration
     __tablename__ = "events"
@@ -35,14 +29,14 @@ class EventCreateSchema(SQLModel):
     """Schema for creating new events."""
 
     timestamp: datetime
-    user_id: Optional[str] = Field(default=None)
-    agent_id: Optional[str] = Field(default=None)
+    user_id: str | None = Field(default=None)
+    agent_id: str | None = Field(default=None)
     signal_type: str
-    emotional_tone: Optional[float] = Field(default=None)
-    drift_score: Optional[float] = Field(default=None)
+    emotional_tone: float | None = Field(default=None)
+    drift_score: float | None = Field(default=None)
     escalate_flag: int = Field(default=0)
-    relationship_context: Optional[str] = Field(default=None)
-    diagnostic_notes: Optional[str] = Field(default=None)
+    relationship_context: str | None = Field(default=None)
+    diagnostic_notes: str | None = Field(default=None)
 
 
 class EventReadSchema(SQLModel):
@@ -50,20 +44,20 @@ class EventReadSchema(SQLModel):
 
     id: int
     timestamp: datetime
-    user_id: Optional[str] = None
-    agent_id: Optional[str] = None
-    signal_type: Optional[str] = None
-    emotional_tone: Optional[float] = None
-    drift_score: Optional[float] = None
+    user_id: str | None = None
+    agent_id: str | None = None
+    signal_type: str | None = None
+    emotional_tone: float | None = None
+    drift_score: float | None = None
     escalate_flag: int
-    relationship_context: Optional[str] = None
-    diagnostic_notes: Optional[str] = None
+    relationship_context: str | None = None
+    diagnostic_notes: str | None = None
 
 
 class EventListSchema(SQLModel):
     """Schema for paginated event lists."""
 
-    results: List[EventReadSchema]
+    results: list[EventReadSchema]
     count: int
 
 
@@ -72,7 +66,7 @@ class EventBucketSchema(SQLModel):
 
     bucket: datetime
     signal_type: str
-    agent_id: Optional[str] = None
-    avg_emotional_tone: Optional[float] = 0.0
-    avg_drift_score: Optional[float] = 0.0
+    agent_id: str | None = None
+    avg_emotional_tone: float | None = 0.0
+    avg_drift_score: float | None = 0.0
     total_count: int = 0

@@ -1,10 +1,9 @@
-from typing import List
-
-from api.db.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlmodel import Session, select
 from timescaledb.hyperfunctions import time_bucket
+
+from api.db.session import get_session
 
 from .models import EventBucketSchema, EventCreateSchema, EventModel
 
@@ -16,10 +15,10 @@ DEFAULT_SIGNAL_TYPES = ["relational", "emotional", "behavioral"]
 # Get data here
 # List View
 # GET /api/events/
-@router.get("/", response_model=List[EventBucketSchema])
+@router.get("/", response_model=list[EventBucketSchema])
 def read_events(
     duration: str = Query(default="1 day"),
-    signal_types: List[str] = Query(default=None),
+    signal_types: list = Query(default=None),
     # agent_ids: List[str] = Query(default=None),
     session: Session = Depends(get_session),
 ):

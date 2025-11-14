@@ -1,4 +1,4 @@
-# Analytics API using FastAPI + TimescaleDB + PostgreSQL
+# Coherence Signal Architecture API using: FastAPI + SQLModel + TimescaleDB + PostgreSQL
 
 Version 1
 
