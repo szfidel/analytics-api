@@ -70,10 +70,6 @@ Health Check
 GET /healthz
 Returns {"status": "ok"}
 
-Root
-GET /
-Simple test endpoint
-
 Event Management
 List Events (Aggregated)
 GET /api/events/
