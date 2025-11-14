@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -64,8 +66,14 @@ def read_events(
 # POST /api/events/
 @router.post("/", response_model=EventModel)
 def create_event(payload: EventCreateSchema, session: Session = Depends(get_session)):
-    # a bunch of items in a table
-    data = payload.model_dump()  # payload -> dict -> pydantic
+    # Convert the Pydantic schema to dictionary
+    data = payload.model_dump()
+    
+    # Serialize payload dict to JSON string for storage in PostgreSQL jsonb column
+    if data.get("payload") is not None:
+        data["payload"] = json.dumps(data["payload"])
+    
+    # Create EventModel instance and persist to database
     obj = EventModel.model_validate(data)
     session.add(obj)
     session.commit()

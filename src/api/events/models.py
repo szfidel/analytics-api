@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from sqlmodel import Field, SQLModel
 from timescaledb import TimescaleModel
@@ -15,7 +16,7 @@ class EventModel(TimescaleModel, table=True):
     emotional_tone: float | None = Field(default=None)
     drift_score: float | None = Field(default=None)
     escalate_flag: int = Field(default=0)  # NOT NULL constraint
-    payload: str | None = Field(default=None, index=True)  # JSON type
+    payload: str | None = Field(default=None, index=True)  # JSON stored as text/jsonb in PostgreSQL
     relationship_context: str | None = None
     diagnostic_notes: str | None = None
 
@@ -35,6 +36,7 @@ class EventCreateSchema(SQLModel):
     emotional_tone: float | None = Field(default=None)
     drift_score: float | None = Field(default=None)
     escalate_flag: int = Field(default=0)
+    payload: dict[str, Any] | None = Field(default=None)  # JSON payload as dict
     relationship_context: str | None = Field(default=None)
     diagnostic_notes: str | None = Field(default=None)
 

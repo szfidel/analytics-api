@@ -132,7 +132,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--method",
         choices=["api", "sql", "both"],
-        default="sql",
+        default="api",
         help="Insertion method: api (HTTP POST), sql (raw SQL), or both (default: api)",
     )
     parser.add_argument(
