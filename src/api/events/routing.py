@@ -1,11 +1,12 @@
+"""/src/api/events/routing.py"""
+
 import json
 
+from api.db.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlmodel import Session, select
 from timescaledb.hyperfunctions import time_bucket
-
-from api.db.session import get_session
 
 from .models import EventBucketSchema, EventCreateSchema, EventModel
 
@@ -68,11 +69,11 @@ def read_events(
 def create_event(payload: EventCreateSchema, session: Session = Depends(get_session)):
     # Convert the Pydantic schema to dictionary
     data = payload.model_dump()
-    
+
     # Serialize payload dict to JSON string for storage in PostgreSQL jsonb column
     if data.get("payload") is not None:
         data["payload"] = json.dumps(data["payload"])
-    
+
     # Create EventModel instance and persist to database
     obj = EventModel.model_validate(data)
     session.add(obj)
