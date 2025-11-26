@@ -4,51 +4,64 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class ConversationModel(SQLModel, table=True):
     """Conversation/Session model for tracking discourse coherence.
-    
+
     Groups signals into conversations/timelines for coherence scoring
     and drift analysis over sliding windows.
     """
 
     __tablename__ = "conversations"
-
-    conversation_id: str = Field(
+    id: str = Field(
         default_factory=lambda: str(uuid4()),
         primary_key=True,
     )
-    user_id: str | None = Field(default=None, index=True)
+    user_id: str | None = Field(
+        default=None, foreign_key="users.id", index=True
+    )  # FK to UserModel
     agent_id: str | None = Field(default=None, index=True)
     started_at: datetime = Field(default_factory=datetime.utcnow, index=True)
     ended_at: datetime | None = Field(default=None, index=True)
-    
+
     # Coherence tracking
     coherence_score_current: float | None = Field(default=None)  # 0-1
     coherence_score_trend: float | None = Field(default=None)  # slope or trend value
-    
+
     # Metadata
     context_metadata: str | None = Field(default=None)  # JSON context
+
+    # Relationships
+    user: "UserModel" = Relationship(back_populates="conversations")  # type: ignore
+    drift_metrics: list["SignalDriftMetricModel"] = Relationship(
+        back_populates="conversation"
+    )
 
 
 class SignalDriftMetricModel(SQLModel, table=True):
     """Signal drift metrics per conversation window.
-    
+
     Tracks moving variance of signal_scores over sliding time windows.
     Core of the Coherence Signal Architecture.
     """
 
     __tablename__ = "signal_drift_metrics"
-
     id: int | None = Field(default=None, primary_key=True)
-    conversation_id: str = Field(index=True)  # FK to ConversationModel
+    conversation_id: str = Field(
+        foreign_key="conversations.id", index=True
+    )  # FK to ConversationModel
     window_start: datetime = Field(index=True)
     window_end: datetime = Field(index=True)
     drift_score: float = Field(default=0.0)  # Moving variance 0-1
     signal_count: int = Field(default=0)  # Signals in window
     coherence_trend: float | None = Field(default=None)  # Directional trend
+
+    # Relationship
+    conversation: ConversationModel | None = Relationship(
+        back_populates="drift_metrics"
+    )
 
 
 class ConversationCreateSchema(SQLModel):
@@ -63,7 +76,7 @@ class ConversationCreateSchema(SQLModel):
 class ConversationReadSchema(SQLModel):
     """Schema for reading conversation details."""
 
-    conversation_id: str
+    id: str
     user_id: str | None = None
     agent_id: str | None = None
     started_at: datetime
@@ -95,7 +108,7 @@ class SignalDriftMetricReadSchema(SQLModel):
 class CoherenceResponseSchema(SQLModel):
     """Response schema for coherence endpoint."""
 
-    conversation_id: str
+    id: str
     coherence_score_current: float | None = None
     coherence_score_trend: float | None = None
     drift_metrics: list[SignalDriftMetricReadSchema] = Field(default_factory=list)

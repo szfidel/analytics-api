@@ -19,7 +19,7 @@ def test_patch_conversation(conversation_id, update_data):
         if response.status_code == 200:
             result = response.json()
             print(f"✅ Conversation updated successfully")
-            print(f"   ID: {result.get('conversation_id')}")
+            print(f"   ID: {result.get('id')}")
             print(f"   Ended: {result.get('ended_at')}")
             print(f"   Coherence Score: {result.get('coherence_score_current')}")
             print(f"   Coherence Trend: {result.get('coherence_score_trend')}")

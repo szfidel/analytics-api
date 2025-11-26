@@ -25,7 +25,7 @@ def test_get_coherence(conversation_id, window_size="5m"):
         if response.status_code == 200:
             result = response.json()
             print(f"✅ Coherence metrics retrieved successfully")
-            print(f"   Conversation: {result.get('conversation_id')}")
+            print(f"   Conversation: {result.get('id')}")
             print(f"   Window Size: {window_size}")
             print()
 

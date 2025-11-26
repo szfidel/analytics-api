@@ -7,18 +7,22 @@ Version 1.1 - Coherence Signal Architecture
 **Tech Stack:** FastAPI, PostgreSQL + TimescaleDB, SQLModel, Uvicorn, Pinecone (vector DB)
 
 **Key Features:**
+- User management with pgcrypto encrypted personal information
 - Signal ingestion from multiple sources (Axis, M, Neo, person, Slack, etc.)
 - Vector-native signal capture with Pinecone embedding references
-- Conversation/session grouping and tracking
+- Conversation/session grouping and tracking with user relationships
 - Real-time coherence scoring via drift analysis
 - Moving variance computation over sliding time windows
 - Signal lineage and source diversity metrics
 - REST API for signal CRUD and coherence analytics
+- Comprehensive test suite with 100+ test cases
 
 **Data Model:**
+- `users`: User profiles with encrypted personal information (email, phone, address)
+- `conversations`: Session/timeline grouping for coherence tracking, linked to users
 - `signals`: Vector-native signal capture with source, score, and Pinecone vector reference
-- `conversations`: Session/timeline grouping for coherence tracking
 - `signal_drift_metrics`: Drift measurements (variance) per conversation window
+- **Relationships:** Users → Conversations (1:M), Conversations → SignalDriftMetrics (1:M)
 
 **Deployment:** Docker + Docker Compose with TimescaleDB + PostgreSQL
 
@@ -231,6 +235,107 @@ Response:
 
 ---
 
+## User Management
+
+### Create User
+
+**POST /api/users/**
+
+Request Body:
+```json
+{
+  "username": "john_doe",
+  "email": "john@example.com",
+  "phone": "555-1234",
+  "address": "123 Main St, City, State 12345"
+}
+```
+
+Response:
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "username": "john_doe",
+  "created_at": "2024-11-26T12:00:00Z",
+  "is_active": true
+}
+```
+
+**Note:** Personal information (email, phone, address) is encrypted in the database but NOT returned in API responses for security.
+
+### Get User
+
+**GET /api/users/{user_id}**
+
+Returns user details without exposing encrypted personal information.
+
+Response:
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "username": "john_doe",
+  "created_at": "2024-11-26T12:00:00Z",
+  "is_active": true
+}
+```
+
+### Update User
+
+**PATCH /api/users/{user_id}**
+
+Request Body (all fields optional):
+```json
+{
+  "email": "newemail@example.com",
+  "phone": "555-5555",
+  "address": "456 New Ave, New City, State 54321",
+  "is_active": false
+}
+```
+
+Response: Updated user object
+
+### Delete User
+
+**DELETE /api/users/{user_id}**
+
+Permanently deletes a user from the system.
+
+Response:
+```json
+{
+  "message": "User deleted successfully",
+  "id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+### Get User's Conversations
+
+**GET /api/users/{user_id}/conversations**
+
+Retrieves all conversations associated with a user (via foreign key relationship).
+
+Response:
+```json
+{
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "conversation_count": 3,
+  "conversations": [
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440000",
+      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+      "agent_id": "agent-123",
+      "started_at": "2024-11-26T10:00:00Z",
+      "ended_at": null,
+      "coherence_score_current": 0.82,
+      "coherence_score_trend": 0.05
+    }
+  ]
+}
+```
+
+---
+
 ## Core Concepts
 
 ### Signal
@@ -263,9 +368,17 @@ Derived from drift and signal diversity:
 
 ## Test Suite
 
-Comprehensive test suite for all 9 API endpoints. Each endpoint has a dedicated test file.
+Comprehensive test suite for all 14 API endpoints (5 users + 4 conversations + 5 signals). Each endpoint has dedicated test files.
 
 ### Test Files
+
+**User Management Endpoints:**
+- `tests/test_create_user.py` - POST /api/users/
+- `tests/test_get_user.py` - GET /api/users/{id}
+- `tests/test_patch_user.py` - PATCH /api/users/{id}
+- `tests/test_delete_user.py` - DELETE /api/users/{id}
+- `tests/test_user_conversations.py` - GET /api/users/{id}/conversations
+- `tests/test_user_encryption.py` - pgcrypto Encryption verification
 
 **Conversation Endpoints:**
 - `tests/test_create_conversation.py` - POST /api/conversations/
@@ -279,14 +392,24 @@ Comprehensive test suite for all 9 API endpoints. Each endpoint has a dedicated 
 - `tests/test_list_signals.py` - GET /api/signals/
 - `tests/test_get_signals_by_conversation.py` - GET /api/signals/conversation/{id}
 
-**Test Runner:**
-- `tests/run_all_tests.py` - Master test orchestrator
+**Test Runners:**
+- `tests/run_all_tests.py` - Signals & Conversations orchestrator
+- `tests/run_user_tests.py` - User management test suite (4 modes)
 
 ### Quick Test Commands
 
 ```bash
-# Full workflow test (recommended)
+# User management tests (recommended)
 cd tests
+python run_user_tests.py                           # All user tests
+
+# User test modes
+python run_user_tests.py --mode crud               # CRUD workflow
+python run_user_tests.py --mode encryption         # Encryption verification
+python run_user_tests.py --mode relationship       # User-Conversation relationships
+python run_user_tests.py --mode validation         # Validation tests
+
+# Full workflow test (signals & conversations)
 python run_all_tests.py --mode workflow
 
 # Individual endpoint tests
@@ -298,7 +421,69 @@ python test_get_coherence.py <conversation_id>
 python run_all_tests.py --mode stress --conversation-id <id> --signal-count 100
 ```
 
-See `tests/TEST_GUIDE.md` for comprehensive testing documentation.
+See `tests/TEST_GUIDE.md` for conversation/signal tests and `tests/USER_TESTS_GUIDE.md` for user management tests.
+
+---
+
+# Security & Encryption
+
+## User Data Encryption (pgcrypto)
+
+Personal user information is encrypted at the database level using PostgreSQL's pgcrypto extension:
+
+- **Email**: Encrypted and stored as `bytea` in database
+- **Phone**: Encrypted and stored as `bytea` in database  
+- **Address**: Encrypted and stored as `bytea` in database
+
+### Security Features
+
+✅ **Encrypted at Database Level**
+- Personal information never stored as plaintext
+- Encryption transparent to application
+- Field-level encryption (each field encrypted separately)
+
+✅ **API Security**
+- Encrypted fields NEVER exposed in API responses
+- Only safe fields returned (id, username, created_at, is_active)
+- Secure by design - data protection at source
+
+✅ **Data Integrity**
+- Foreign key constraints between users and conversations
+- Unique username constraint
+- Proper validation on all inputs
+
+### How It Works
+
+1. **On Create**: User provides plaintext personal info
+2. **At Database**: PostgreSQL encrypts and stores as bytea
+3. **On Retrieve**: API returns only safe fields (no encrypted data)
+4. **Decryption**: Requires encryption key (admin-only access pattern)
+
+### Example
+
+```bash
+# Create user with personal info
+curl -X POST http://localhost:8002/api/users/ \
+  -d '{"username":"john","email":"john@example.com","phone":"555-1234"}'
+
+# Response (encrypted fields NOT included)
+{"id":"...", "username":"john", "created_at":"...", "is_active":true}
+
+# Database storage (encrypted)
+email_encrypted: b'\x84\x2f\x9a\xc1...'  (pgcrypto encrypted)
+phone_encrypted: b'\x92\x3b\x1d\xe7...'  (pgcrypto encrypted)
+```
+
+### For Production
+
+To enable true pgcrypto encryption with automatic triggers:
+
+1. Create PostgreSQL trigger for encryption/decryption
+2. Store encryption key in secure vault (AWS KMS, HashiCorp Vault)
+3. Implement admin-only decryption endpoint (if needed)
+4. Add audit logging for sensitive operations
+
+See `USERS_API_SUMMARY.md` for detailed encryption implementation guide.
 
 ---
 

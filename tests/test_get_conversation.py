@@ -17,7 +17,7 @@ def test_get_conversation(conversation_id):
         if response.status_code == 200:
             result = response.json()
             print(f"✅ Conversation retrieved successfully")
-            print(f"   ID: {result.get('conversation_id')}")
+            print(f"   ID: {result.get('id')}")
             print(f"   User: {result.get('user_id')}")
             print(f"   Agent: {result.get('agent_id')}")
             print(f"   Started: {result.get('started_at')}")

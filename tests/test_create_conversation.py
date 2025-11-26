@@ -36,7 +36,7 @@ def test_create_conversation():
         if response.status_code in (200, 201):
             result = response.json()
             print(f"✅ Conversation created successfully")
-            print(f"   ID: {result.get('conversation_id')}")
+            print(f"   ID: {result.get('id')}")
             print(f"   User: {result.get('user_id')}")
             print(f"   Agent: {result.get('agent_id')}")
             print(f"   Started: {result.get('started_at')}")

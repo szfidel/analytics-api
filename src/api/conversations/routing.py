@@ -51,7 +51,7 @@ def get_conversation(
 ):
     """Retrieve conversation details."""
     query = select(ConversationModel).where(
-        ConversationModel.conversation_id == conversation_id
+        ConversationModel.id == conversation_id
     )
     result = session.exec(query).first()
     if not result:
@@ -68,7 +68,7 @@ def update_conversation(
 ):
     """Update conversation (end_at, coherence scores)."""
     query = select(ConversationModel).where(
-        ConversationModel.conversation_id == conversation_id
+        ConversationModel.id == conversation_id
     )
     conv = session.exec(query).first()
     if not conv:
@@ -110,7 +110,7 @@ def get_coherence(
     
     # Get conversation
     query = select(ConversationModel).where(
-        ConversationModel.conversation_id == conversation_id
+        ConversationModel.id == conversation_id
     )
     conv = session.exec(query).first()
     if not conv:
@@ -120,13 +120,13 @@ def get_coherence(
     signals_query = (
         select(SignalModel)
         .where(SignalModel.context_window_id == conversation_id)
-        .order_by(SignalModel.time)
+        .order_by(SignalModel.time.asc())  # type: ignore
     )
     signals = session.exec(signals_query).fetchall()
     
     if not signals:
         return CoherenceResponseSchema(
-            conversation_id=conversation_id,
+            id=conversation_id,
             coherence_score_current=None,
             coherence_score_trend=None,
             drift_metrics=[],
@@ -153,7 +153,7 @@ def get_coherence(
     time_range_end = signals[-1].time if signals else None
     
     return CoherenceResponseSchema(
-        conversation_id=conversation_id,
+        id=conversation_id,
         coherence_score_current=coherence_score,
         coherence_score_trend=None,  # TODO: compute trend
         drift_metrics=drift_metrics,

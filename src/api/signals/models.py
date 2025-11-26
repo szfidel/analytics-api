@@ -9,7 +9,7 @@ from timescaledb import TimescaleModel
 
 class SignalModel(TimescaleModel, table=True):
     """Signal data model for Coherence Signal Architecture.
-    
+
     Replaces EventModel with vector-native signal capture.
     TimescaleModel provides:
     - id: Optional[int] (auto-incremented primary key)
@@ -18,14 +18,16 @@ class SignalModel(TimescaleModel, table=True):
 
     user_id: str | None = Field(default=None, index=True)
     agent_id: str | None = Field(default=None, index=True)
-    
+
     # Core signal capture
     raw_content: str | None = Field(default=None)  # Text, speaker, message content
     context_window_id: str = Field(index=True)  # FK to conversation, UUID
-    signal_source: str = Field(default="unknown")  # "Axis", "M", "Neo", "person", "Slack", etc.
+    signal_source: str = Field(
+        default="unknown"
+    )  # "Axis", "M", "Neo", "person", "Slack", etc.
     signal_score: float = Field(default=0.5)  # 0-1 coherence strength
     signal_vector: str | None = Field(default=None)  # Pinecone vector DB reference
-    
+
     # Legacy/optional fields for compatibility
     emotional_tone: float | None = Field(default=None)
     escalate_flag: int = Field(default=0)
