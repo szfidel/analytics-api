@@ -13,14 +13,14 @@ ENDPOINT = f"{BASE_URL}/api/conversations/"
 def generate_conversation():
     """Generate a conversation payload."""
     import json
-    
+
     metadata = {
         "topic": "test conversation",
         "environment": "testing",
     }
-    
+
     return {
-        "user_id": "test_user_001",
+        "user_id": "test_user",
         "agent_id": "test_agent_001",
         "started_at": datetime.now(timezone.utc).isoformat(),
     }
