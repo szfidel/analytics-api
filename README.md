@@ -7,6 +7,7 @@ Version 1.1 - Coherence Signal Architecture
 **Tech Stack:** FastAPI, PostgreSQL + TimescaleDB, SQLModel, Uvicorn, Pinecone (vector DB)
 
 **Key Features:**
+
 - User management with pgcrypto encrypted personal information
 - Signal ingestion from multiple sources (Axis, M, Neo, person, Slack, etc.)
 - Vector-native signal capture with Pinecone embedding references
@@ -18,6 +19,7 @@ Version 1.1 - Coherence Signal Architecture
 - Comprehensive test suite with 100+ test cases
 
 **Data Model:**
+
 - `users`: User profiles with encrypted personal information (email, phone, address)
 - `conversations`: Session/timeline grouping for coherence tracking, linked to users
 - `signals`: Vector-native signal capture with source, score, and Pinecone vector reference
@@ -81,6 +83,7 @@ Clean Up
 ## Health Check
 
 **GET /healthz**
+
 ```
 Returns: {"status": "ok"}
 ```
@@ -94,11 +97,13 @@ Returns: {"status": "ok"}
 **GET /api/signals/**
 
 Query Parameters:
+
 - `duration` (string, default: "1 day"): Time bucket duration (e.g., "1 hour", "7 days")
 - `context_window_id` (string, optional): Filter by conversation ID
 - `signal_sources` (array, optional): Filter by signal sources (e.g., "Axis", "M", "Neo", "person")
 
 Response:
+
 ```json
 [
   {
@@ -117,6 +122,7 @@ Response:
 **POST /api/signals/**
 
 Request Body:
+
 ```json
 {
   "timestamp": "2024-11-18T10:30:00Z",
@@ -129,7 +135,7 @@ Request Body:
   "signal_vector": "pinecone_vector_id_12345",
   "emotional_tone": 0.7,
   "escalate_flag": 0,
-  "payload": {"custom": "metadata"}
+  "payload": { "custom": "metadata" }
 }
 ```
 
@@ -144,6 +150,7 @@ Returns a single signal with all details.
 **GET /api/signals/conversation/{context_window_id}**
 
 Query Parameters:
+
 - `limit` (int, default: 100): Maximum signals to return
 
 Returns list of signals in a conversation, ordered by timestamp.
@@ -157,16 +164,18 @@ Returns list of signals in a conversation, ordered by timestamp.
 **POST /api/conversations/**
 
 Request Body:
+
 ```json
 {
   "user_id": "user-123",
   "agent_id": "agent-123",
   "started_at": "2024-11-18T10:00:00Z",
-  "context_metadata": {"topic": "coherence analysis"}
+  "context_metadata": { "topic": "coherence analysis" }
 }
 ```
 
 Response:
+
 ```json
 {
   "conversation_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -190,6 +199,7 @@ Returns conversation details and metadata.
 **PATCH /api/conversations/{conversation_id}**
 
 Request Body:
+
 ```json
 {
   "ended_at": "2024-11-18T11:30:00Z",
@@ -203,9 +213,11 @@ Request Body:
 **GET /api/conversations/{conversation_id}/coherence**
 
 Query Parameters:
+
 - `window_size` (string, default: "5m"): Drift calculation window (e.g., "5m", "1h", "30s")
 
 Response:
+
 ```json
 {
   "conversation_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -242,6 +254,7 @@ Response:
 **POST /api/users/**
 
 Request Body:
+
 ```json
 {
   "username": "john_doe",
@@ -252,6 +265,7 @@ Request Body:
 ```
 
 Response:
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -270,6 +284,7 @@ Response:
 Returns user details without exposing encrypted personal information.
 
 Response:
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -284,6 +299,7 @@ Response:
 **PATCH /api/users/{user_id}**
 
 Request Body (all fields optional):
+
 ```json
 {
   "email": "newemail@example.com",
@@ -302,6 +318,7 @@ Response: Updated user object
 Permanently deletes a user from the system.
 
 Response:
+
 ```json
 {
   "message": "User deleted successfully",
@@ -316,6 +333,7 @@ Response:
 Retrieves all conversations associated with a user (via foreign key relationship).
 
 Response:
+
 ```json
 {
   "user_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -339,7 +357,9 @@ Response:
 ## Core Concepts
 
 ### Signal
+
 Vector-native representation of discourse elements:
+
 - `raw_content`: Text/message content
 - `context_window_id`: Link to parent conversation
 - `signal_source`: Source identifier (Axis, M, Neo, person, Slack, etc.)
@@ -347,19 +367,25 @@ Vector-native representation of discourse elements:
 - `signal_vector`: Reference to Pinecone embedding
 
 ### Conversation
+
 Temporal grouping of signals for coherence analysis:
+
 - Tracks session start/end times
 - Maintains current coherence score and trend
 - Groups signals for drift analysis
 
 ### Drift Score
+
 Moving variance of signal_scores within a time window:
+
 - High drift (0.7-1.0) = low coherence (inconsistent signals)
 - Low drift (0.0-0.3) = high coherence (consistent signals)
 - Computed over sliding windows (default: 5-minute windows)
 
 ### Coherence Score
+
 Derived from drift and signal diversity:
+
 - Formula: `coherence = 1 - avg(drift_scores)` (baseline)
 - Adjusted for: source diversity, signal stability, temporal trend
 - Range: 0-1 (1.0 = perfect coherence, 0.0 = complete incoherence)
@@ -373,6 +399,7 @@ Comprehensive test suite for all 14 API endpoints (5 users + 4 conversations + 5
 ### Test Files
 
 **User Management Endpoints:**
+
 - `tests/test_create_user.py` - POST /api/users/
 - `tests/test_get_user.py` - GET /api/users/{id}
 - `tests/test_patch_user.py` - PATCH /api/users/{id}
@@ -381,18 +408,21 @@ Comprehensive test suite for all 14 API endpoints (5 users + 4 conversations + 5
 - `tests/test_user_encryption.py` - pgcrypto Encryption verification
 
 **Conversation Endpoints:**
+
 - `tests/test_create_conversation.py` - POST /api/conversations/
 - `tests/test_get_conversation.py` - GET /api/conversations/{id}
 - `tests/test_patch_conversation.py` - PATCH /api/conversations/{id}
 - `tests/test_get_coherence.py` - GET /api/conversations/{id}/coherence ⭐ CORE
 
 **Signal Endpoints:**
+
 - `tests/test_create_signal.py` - POST /api/signals/
 - `tests/test_get_signal.py` - GET /api/signals/{id}
 - `tests/test_list_signals.py` - GET /api/signals/
 - `tests/test_get_signals_by_conversation.py` - GET /api/signals/conversation/{id}
 
 **Test Runners:**
+
 - `tests/run_all_tests.py` - Signals & Conversations orchestrator
 - `tests/run_user_tests.py` - User management test suite (4 modes)
 
@@ -429,61 +459,208 @@ See `tests/TEST_GUIDE.md` for conversation/signal tests and `tests/USER_TESTS_GU
 
 ## User Data Encryption (pgcrypto)
 
-Personal user information is encrypted at the database level using PostgreSQL's pgcrypto extension:
+Personal user information is **automatically encrypted** at the database level using PostgreSQL's pgcrypto extension with BEFORE INSERT/UPDATE triggers:
 
-- **Email**: Encrypted and stored as `bytea` in database
-- **Phone**: Encrypted and stored as `bytea` in database  
-- **Address**: Encrypted and stored as `bytea` in database
+- **Email**: Encrypted with `pgp_sym_encrypt()` and stored as `bytea` in database
+- **Phone**: Encrypted with `pgp_sym_encrypt()` and stored as `bytea` in database
+- **Address**: Encrypted with `pgp_sym_encrypt()` and stored as `bytea` in database
+
+### Automatic Encryption Trigger
+
+The system implements a PostgreSQL trigger that automatically encrypts personal information when data is inserted or updated:
+
+```sql
+-- Trigger fires BEFORE INSERT OR UPDATE on users table
+CREATE TRIGGER users_encrypt_trigger
+BEFORE INSERT OR UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION encrypt_user_fields();
+```
+
+**How it works:**
+
+1. Application sends plaintext data to API (email, phone, address)
+2. Data is stored as encoded bytes in database
+3. **BEFORE INSERT trigger fires** and encrypts the bytes using `pgp_sym_encrypt()`
+4. Encrypted bytea is stored in database
+5. API response returns only safe fields (no encrypted data exposed)
 
 ### Security Features
 
-✅ **Encrypted at Database Level**
+✅ **Automatic Encryption at Database Level**
+
+- Encryption happens transparently at database level
 - Personal information never stored as plaintext
-- Encryption transparent to application
+- Works automatically on INSERT and UPDATE operations
 - Field-level encryption (each field encrypted separately)
 
+✅ **Key Management via Environment Variables**
+
+- Encryption key stored in `PGCRYPTO_KEY` environment variable
+- Uses `python-decouple` for secure configuration management
+- Key never hardcoded or exposed in application code
+- Validated at application startup (fails if not set)
+
 ✅ **API Security**
+
 - Encrypted fields NEVER exposed in API responses
 - Only safe fields returned (id, username, created_at, is_active)
 - Secure by design - data protection at source
+- `UserReadSchema` excludes all encrypted fields
 
 ✅ **Data Integrity**
+
 - Foreign key constraints between users and conversations
 - Unique username constraint
 - Proper validation on all inputs
+- ORM works transparently with encrypted fields
 
 ### How It Works
 
-1. **On Create**: User provides plaintext personal info
-2. **At Database**: PostgreSQL encrypts and stores as bytea
-3. **On Retrieve**: API returns only safe fields (no encrypted data)
-4. **Decryption**: Requires encryption key (admin-only access pattern)
+1. **Configuration** (`.env.compose`):
 
-### Example
+   ```env
+   PGCRYPTO_KEY=your-key
+   ```
 
-```bash
-# Create user with personal info
-curl -X POST http://localhost:8002/api/users/ \
-  -d '{"username":"john","email":"john@example.com","phone":"555-1234"}'
+2. **On Create** (User sends plaintext):
 
-# Response (encrypted fields NOT included)
-{"id":"...", "username":"john", "created_at":"...", "is_active":true}
+   ```bash
+   POST /api/users/
+   {
+     "username": "john_doe",
+     "email": "john@example.com",
+     "phone": "555-1234",
+     "address": "123 Main St"
+   }
+   ```
 
-# Database storage (encrypted)
-email_encrypted: b'\x84\x2f\x9a\xc1...'  (pgcrypto encrypted)
-phone_encrypted: b'\x92\x3b\x1d\xe7...'  (pgcrypto encrypted)
+3. **At Database** (Trigger encrypts automatically):
+   - Application: Stores as bytes
+   - Trigger: Converts bytes to text with `convert_from()`
+   - Trigger: Encrypts with `pgp_sym_encrypt(plaintext, key)`
+   - Database: Stores encrypted bytea
+
+4. **On Retrieve** (API returns safe data):
+
+   ```json
+   {
+     "id": "uuid",
+     "username": "john_doe",
+     "created_at": "2025-11-27T03:00:00Z",
+     "is_active": true
+   }
+   ```
+
+   Note: email, phone, address NOT included
+
+5. **Decryption** (Admin access pattern):
+   ```sql
+   SELECT pgp_sym_decrypt(email_encrypted, 'encryption-key') AS email
+   FROM users WHERE id = 'user-id';
+   ```
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ API Request (plaintext email, phone, address)           │
+└──────────────────┬──────────────────────────────────────┘
+                   │
+                   ▼
+        ┌─────────────────────────┐
+        │  .encode() → bytes      │
+        └──────────┬──────────────┘
+                   │
+                   ▼
+        ┌─────────────────────────────────────────┐
+        │ PostgreSQL INSERT/UPDATE Statement      │
+        └──────────────┬──────────────────────────┘
+                       │
+                       ▼
+        ┌──────────────────────────────────────────────┐
+        │ BEFORE INSERT/UPDATE Trigger Fires           │
+        │ encrypt_user_fields() function               │
+        ├──────────────────────────────────────────────┤
+        │ 1. Read encryption key: app.pgcrypto_key     │
+        │ 2. Convert bytes → UTF-8 text                │
+        │ 3. pgp_sym_encrypt(plaintext, key)           │
+        │ 4. Return encrypted bytea                    │
+        └──────────────┬───────────────────────────────┘
+                       │
+                       ▼
+        ┌─────────────────────────────────────────┐
+        │ Store encrypted bytea in database       │
+        │ email_encrypted: b'\xc3\r\x04\x07...'   │
+        │ phone_encrypted: b'\xc3\r\x04\x07...'   │
+        │ address_encrypted: b'\xc3\r\x04\x07...' │
+        └─────────────────────────────────────────┘
 ```
 
-### For Production
+### Implementation Files
 
-To enable true pgcrypto encryption with automatic triggers:
+- **`src/api/db/triggers.sql`** - PostgreSQL trigger function and definition
+- **`src/api/db/config.py`** - PGCRYPTO_KEY configuration via decouple
+- **`src/api/db/session.py`** - `init_pgcrypto_trigger()` initializes at startup
+- **`src/api/users/routing.py`** - API routes with `.encode()` for bytes storage
+- **`tests/test_user_encryption.py`** - Comprehensive encryption test suite
 
-1. Create PostgreSQL trigger for encryption/decryption
-2. Store encryption key in secure vault (AWS KMS, HashiCorp Vault)
-3. Implement admin-only decryption endpoint (if needed)
-4. Add audit logging for sensitive operations
+### Testing Encryption
 
-See `USERS_API_SUMMARY.md` for detailed encryption implementation guide.
+Run the encryption test suite to verify the trigger is working:
+
+```bash
+cd tests
+python test_user_encryption.py --mode full
+```
+
+Test modes:
+
+```bash
+python test_user_encryption.py --mode create       # Create user via API
+python test_user_encryption.py --mode check        # Verify database encryption
+python test_user_encryption.py --mode api-security # Verify API security
+python test_user_encryption.py --mode full         # All tests (default)
+```
+
+### Example Test Output
+
+```
+✅ User created via API
+   ID: 8a13a064-eb53-4bda-b423-1e517a1d4bc7
+   Username: encryption_test_user_1764214243085
+
+✅ Email encrypted: bytes (b'\xc3\r\x04\x07\x03\x02...')
+✅ Phone encrypted: bytes (b'\xc3\r\x04\x07\x03\x02...')
+✅ Address encrypted: bytes (b'\xc3\r\x04\x07\x03\x02...')
+
+✅ API Response: No encrypted fields exposed
+   - Only returns: id, username, created_at, is_active
+```
+
+### Decryption Example
+
+To decrypt personal information (admin-only pattern):
+
+```sql
+-- Decrypt a user's email
+SELECT
+  id,
+  username,
+  pgp_sym_decrypt(email_encrypted, 'your-encryption-key') AS email,
+  pgp_sym_decrypt(phone_encrypted, 'your-encryption-key') AS phone,
+  pgp_sym_decrypt(address_encrypted, 'your-encryption-key') AS address
+FROM users
+WHERE username = 'john_doe';
+```
+
+Result:
+
+```
+id                   | username  | email            | phone    | address
+─────────────────────┼───────────┼──────────────────┼──────────┼─────────────
+8a13a064-eb53-4bd... | john_doe  | john@example.com | 555-1234 | 123 Main St
+```
 
 ---
 

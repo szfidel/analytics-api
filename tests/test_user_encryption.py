@@ -12,18 +12,23 @@ BASE_URL = "http://localhost:8002"
 USERS_ENDPOINT = f"{BASE_URL}/api/users"
 
 # Database configuration (from .env.compose)
-DB_HOST = "db_service"
+# Note: When running from host machine, use "localhost" instead of "db_service"
+# When running inside Docker, use "db_service"
+import os
+DB_HOST = os.getenv("DB_HOST", "localhost")  # Change to "db_service" if running in Docker
 DB_PORT = 5432
-DB_NAME = "analytics"
-DB_USER = "analytics_user"
-DB_PASSWORD = "analytics_password"
+DB_NAME = "timescaledb"
+DB_USER = "time-user"
+DB_PASSWORD = "time-pw"
 
 
 def create_test_user():
     """Create a test user with personal information."""
+    import time
+    timestamp = int(time.time() * 1000)  # milliseconds for unique username
     user_data = {
-        "username": "encryption_test_user",
-        "email": "encryption.test@example.com",
+        "username": f"encryption_test_user_{timestamp}",
+        "email": f"encryption.test.{timestamp}@example.com",
         "phone": "555-8888",
         "address": "888 Encryption Road, Secret City, SC 88888",
     }
@@ -107,9 +112,11 @@ def test_api_does_not_expose_encrypted_data():
     """Verify that the API does not expose encrypted personal data."""
     print(f"\n🛡️ Verifying API does not expose encrypted data...\n")
 
+    import time
+    timestamp = int(time.time() * 1000)  # milliseconds for unique username
     user_data = {
-        "username": "security_test_user",
-        "email": "security.test@example.com",
+        "username": f"security_test_user_{timestamp}",
+        "email": f"security.test.{timestamp}@example.com",
         "phone": "555-7777",
         "address": "777 Security Ave, Protected City, PC 77777",
     }

@@ -34,6 +34,9 @@ def create_user(
         raise HTTPException(status_code=400, detail="Username already exists")
     
     # Create user - map plaintext fields to encrypted field names
+    # NOTE: The database trigger will automatically encrypt these fields
+    # using pgcrypto before storing in the database
+    # We encode strings to bytes so SQLAlchemy can bind them to the bytea columns
     user_data = {
         "username": payload.username,
         "email_encrypted": payload.email.encode() if payload.email else None,
@@ -87,7 +90,7 @@ def update_user(
     for key, value in update_data.items():
         # Map email, phone, address to their encrypted equivalents
         if key in field_mapping:
-            # Store plaintext for now - pgcrypto encryption would happen at DB level
+            # Encode to bytes - database trigger will automatically encrypt using pgcrypto
             setattr(user, field_mapping[key], value.encode() if value else None)
         else:
             # is_active and other fields
