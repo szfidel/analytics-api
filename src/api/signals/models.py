@@ -93,3 +93,32 @@ class SignalBucketSchema(SQLModel):
     avg_signal_score: float = 0.0
     avg_emotional_tone: float | None = 0.0
     total_count: int = 0
+
+
+class SignalBatchItemResponse(SQLModel):
+    """Response for a single item in batch operation."""
+
+    index: int  # Position in the batch
+    success: bool  # Whether this item was created successfully
+    signal_id: int | None = None  # ID if successful
+    error: str | None = None  # Error message if failed
+
+
+class SignalBatchSchema(SQLModel):
+    """Schema for batch signal creation."""
+
+    signals: list[SignalCreateSchema]
+    fail_on_error: bool = Field(
+        default=False,
+        description="If True, fail entire batch on first error. If False, continue processing."
+    )
+
+
+class SignalBatchResponseSchema(SQLModel):
+    """Response schema for batch signal creation."""
+
+    total_count: int  # Total items in batch
+    successful_count: int  # Successfully created
+    failed_count: int  # Failed to create
+    results: list[SignalBatchItemResponse]  # Detailed results for each item
+    transaction_id: str | None = None  # Optional transaction ID for tracking

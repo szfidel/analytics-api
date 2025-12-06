@@ -1,222 +1,245 @@
-# V1.1 Coherence Signal Architecture - Test Guide
+# Test Guide - Coherence Signal Architecture
 
-This directory contains comprehensive tests for all API endpoints in the V1.1 release.
-
-## Test Files
-
-### Conversation Endpoints
-
-1. **test_create_conversation.py**
-   - Tests: `POST /api/conversations/`
-   - Creates new conversation/session
-   - Usage: `python test_create_conversation.py --count 3`
-
-2. **test_get_conversation.py**
-   - Tests: `GET /api/conversations/{id}`
-   - Retrieves conversation by ID
-   - Usage: `python test_get_conversation.py <conversation_id>`
-
-3. **test_patch_conversation.py**
-   - Tests: `PATCH /api/conversations/{id}`
-   - Updates conversation (end_at, coherence scores)
-   - Usage: `python test_patch_conversation.py <conversation_id> --action end`
-   - Options: `--action [end|coherence|all]`
-
-4. **test_get_coherence.py** ⭐ **CORE ENDPOINT**
-   - Tests: `GET /api/conversations/{id}/coherence`
-   - Computes coherence metrics with drift analysis
-   - Usage: `python test_get_coherence.py <conversation_id> --window-size 5m`
-   - Options: `--test-windows` (test multiple window sizes)
-
-### Signal Endpoints
-
-5. **test_create_signal.py**
-   - Tests: `POST /api/signals/`
-   - Creates signals in a conversation
-   - Usage: `python test_create_signal.py <conversation_id> --count 5`
-   - Options: `--varying-scores` (create signals with different score ranges)
-
-6. **test_get_signal.py**
-   - Tests: `GET /api/signals/{id}`
-   - Retrieves single signal by ID
-   - Usage: `python test_get_signal.py <signal_id>`
-
-7. **test_list_signals.py**
-   - Tests: `GET /api/signals/`
-   - Lists signals with time-bucketing and aggregation
-   - Usage: `python test_list_signals.py --duration "1 day"`
-   - Options: `--test-durations` (test multiple bucket sizes)
-   - Options: `--sources Axis M Neo` (filter by sources)
-
-8. **test_get_signals_by_conversation.py**
-   - Tests: `GET /api/signals/conversation/{context_window_id}`
-   - Gets all signals in a conversation
-   - Usage: `python test_get_signals_by_conversation.py <conversation_id> --limit 50`
-
-### Master Test Runner
-
-9. **run_all_tests.py**
-   - Runs complete test workflows
-   - Usage: `python run_all_tests.py --mode workflow`
-   - Modes:
-     - `workflow`: Full end-to-end test (create conversation → signals → coherence)
-     - `endpoints`: Test all GET endpoints
-     - `stress`: Create many signals (requires `--conversation-id`)
+This directory contains **14 simple, focused test scripts** - one per API endpoint. Each test can be run independently.
 
 ## Quick Start
 
-### 1. Full Workflow Test (Recommended)
-```bash
-# Creates conversation, signals, and analyzes coherence
-python run_all_tests.py --mode workflow
-```
-
-### 2. Manual Testing
-
-Step by step testing:
+### Run a Single Test
 
 ```bash
-# Step 1: Create a conversation
-CONV_ID=$(python test_create_conversation.py | grep "ID:" | awk '{print $3}')
-echo "Created conversation: $CONV_ID"
-
-# Step 2: Create signals in the conversation
-python test_create_signal.py $CONV_ID --count 5
-
-# Step 3: Get signals for the conversation
-python test_get_signals_by_conversation.py $CONV_ID
-
-# Step 4: Get coherence metrics (CORE)
-python test_get_coherence.py $CONV_ID
-
-# Step 5: Update conversation (end it)
-python test_patch_conversation.py $CONV_ID --action end
-
-# Step 6: Verify update
-python test_get_conversation.py $CONV_ID
-```
-
-## Test Scenarios
-
-### Scenario 1: Basic Signal Workflow
-```bash
-# Test basic signal ingestion and coherence analysis
+# Create a conversation (returns conversation_id)
 python test_create_conversation.py
-python test_create_signal.py <conv_id> --count 3
-python test_get_coherence.py <conv_id>
+
+# Then use the ID to test other endpoints
+python test_get_conversation.py --conversation-id <id>
 ```
 
-### Scenario 2: Varying Signal Scores
+## Available Tests
+
+| File | Endpoint | Method | Prerequisites |
+|------|----------|--------|---|
+| **test_create_conversation.py** | `/api/conversations/` | POST | None |
+| **test_get_conversation.py** | `/api/conversations/{id}` | GET | `--conversation-id` |
+| **test_patch_conversation.py** | `/api/conversations/{id}` | PATCH | `--conversation-id` |
+| **test_create_signal.py** | `/api/signals/` | POST | `--conversation-id` |
+| **test_get_signal.py** | `/api/signals/{id}` | GET | `--signal-id` |
+| **test_batch_signals.py** | `/api/signals/batch` | POST | `--conversation-id` |
+| **test_list_signals.py** | `/api/signals/` | GET | None |
+| **test_get_signals_by_conversation.py** | `/api/signals/conversation/{id}` | GET | `--conversation-id` |
+| **test_get_coherence.py** ⭐ | `/api/conversations/{id}/coherence` | GET | `--conversation-id` |
+| **test_create_user.py** | `/api/users/` | POST | None |
+| **test_get_user.py** | `/api/users/{id}` | GET | `--user-id` |
+| **test_patch_user.py** | `/api/users/{id}` | PATCH | `--user-id` |
+| **test_delete_user.py** | `/api/users/{id}` | DELETE | `--user-id` |
+| **test_user_conversations.py** | `/api/users/{id}/conversations` | GET | `--user-id` |
+
+## Usage Examples
+
+### Example 1: Test Conversation Endpoints
+
 ```bash
-# Test coherence with signals of different quality
-python test_create_conversation.py
-python test_create_signal.py <conv_id> --varying-scores
-python test_get_coherence.py <conv_id> --detailed
+# Create a conversation
+conversation_id=$(python test_create_conversation.py)
+
+# Get the conversation
+python test_get_conversation.py --conversation-id $conversation_id
+
+# Update the conversation
+python test_patch_conversation.py --conversation-id $conversation_id
 ```
 
-### Scenario 3: Multiple Window Sizes
+### Example 2: Test Signal Endpoints
+
 ```bash
-# Analyze coherence with different time windows
-python test_create_conversation.py
-python test_create_signal.py <conv_id> --count 10
-python test_get_coherence.py <conv_id> --test-windows
+# First create a conversation
+conversation_id=$(python test_create_conversation.py)
+
+# Create a signal
+signal_id=$(python test_create_signal.py --conversation-id $conversation_id)
+
+# Get the signal
+python test_get_signal.py --signal-id $signal_id
+
+# List all signals
+python test_list_signals.py
+
+# Get signals for that conversation
+python test_get_signals_by_conversation.py --conversation-id $conversation_id
+
+# Test batch signal creation
+python test_batch_signals.py --conversation-id $conversation_id
+
+# Test coherence calculation (CORE ENDPOINT)
+python test_get_coherence.py --conversation-id $conversation_id
 ```
 
-### Scenario 4: Stress Test
+### Example 3: Test User Endpoints
+
 ```bash
-# Test with large number of signals
-python test_create_conversation.py
-python run_all_tests.py --mode stress --conversation-id <conv_id> --signal-count 100
+# Create a user
+user_id=$(python test_create_user.py)
+
+# Get the user
+python test_get_user.py --user-id $user_id
+
+# Update the user
+python test_patch_user.py --user-id $user_id
+
+# Get user's conversations
+python test_user_conversations.py --user-id $user_id
+
+# Delete the user
+python test_delete_user.py --user-id $user_id
 ```
 
-### Scenario 5: Signal Source Analysis
+## Test Output
+
+Each test prints one of two outputs:
+
+**Success:**
+```
+✓ Conversation created: abc-123
+abc-123
+```
+
+**Failure:**
+```
+✗ Test failed: Expected 200, got 404: {"detail":"Conversation not found"}
+```
+
+Tests return IDs or data to stdout (for piping), errors to stderr (for visibility).
+
+## Complete Workflow
+
 ```bash
-# Analyze signals by source
-python test_create_signal.py <conv_id> --count 20
-python test_list_signals.py --conversation-id <conv_id> --test-sources
+# Setup
+conversation_id=$(python test_create_conversation.py)
+user_id=$(python test_create_user.py)
+
+# Test conversation operations
+python test_get_conversation.py --conversation-id $conversation_id
+python test_patch_conversation.py --conversation-id $conversation_id
+
+# Create signals
+signal_id=$(python test_create_signal.py --conversation-id $conversation_id)
+
+# Test signal operations
+python test_get_signal.py --signal-id $signal_id
+python test_list_signals.py
+python test_get_signals_by_conversation.py --conversation-id $conversation_id
+python test_batch_signals.py --conversation-id $conversation_id
+
+# Test core endpoint
+python test_get_coherence.py --conversation-id $conversation_id
+
+# Test user operations
+python test_get_user.py --user-id $user_id
+python test_patch_user.py --user-id $user_id
+python test_user_conversations.py --user-id $user_id
+python test_delete_user.py --user-id $user_id
 ```
 
-## Understanding Test Output
+## Understanding Each Test
 
-### Coherence Interpretation
+### Conversation Tests
 
-The `test_get_coherence.py` output shows:
+- **test_create_conversation.py**: Creates a new conversation, returns its ID
+- **test_get_conversation.py**: Retrieves a conversation's details
+- **test_patch_conversation.py**: Updates conversation data
+- **test_get_coherence.py** ⭐: **CORE ENDPOINT** - Calculates coherence metrics, persists drift metrics
 
-```
-Coherence Score: 0.943 (94.3% coherent)
-├─ Excellent alignment (0.8-1.0)
-├─ Good alignment (0.6-0.8)
-├─ Fair alignment (0.4-0.6)
-└─ Poor alignment (0.0-0.4)
-```
+### Signal Tests
 
-### Drift Score Interpretation
+- **test_create_signal.py**: Creates a single signal in a conversation
+- **test_get_signal.py**: Retrieves a signal by ID
+- **test_batch_signals.py**: Creates multiple signals in one transaction
+- **test_list_signals.py**: Lists signals with time-bucketing (aggregation)
+- **test_get_signals_by_conversation.py**: Retrieves all signals in a conversation
 
-Drift = Moving Variance of Signal Scores
+### User Tests
 
-```
-Drift: 0.057 (5.7%)
-├─ Very low drift (0.0-0.1) → Highly coherent
-├─ Low drift (0.1-0.3) → Coherent
-├─ Moderate drift (0.3-0.6) → Some variation
-└─ High drift (0.6-1.0) → Incoherent
-```
-
-Coherence Formula:
-```
-Coherence = 1 - Average(Drift Scores)
-Example: 1 - 0.057 = 0.943
-```
+- **test_create_user.py**: Creates a new user, returns its ID
+- **test_get_user.py**: Retrieves a user's details
+- **test_patch_user.py**: Updates user data
+- **test_delete_user.py**: Deletes a user
+- **test_user_conversations.py**: Lists conversations for a user
 
 ## Troubleshooting
 
-### "Connection refused" error
-- Ensure Docker containers are running: `docker compose ps`
-- Start containers: `docker compose up -d`
+### Connection Refused
 
-### "Conversation not found (404)"
-- Use valid conversation IDs from recent test runs
-- Create a new conversation first: `python test_create_conversation.py`
+```
+Error: HTTPConnectionPool ... Failed to establish a new connection
+```
 
-### "Signal not found (404)"
-- Create signals first: `python test_create_signal.py <conversation_id>`
-- Get the signal ID from the creation response
+**Solution**: Start the API server
 
-### Empty coherence metrics
-- Need signals with timestamps in the window
-- Create signals first before querying coherence
-- Check window size matches signal timestamps
+```bash
+docker compose up -d
+docker compose logs app  # Check server logs
+```
 
-## Performance Notes
+### Required Arguments
 
-- Creating 50+ signals: ~5-10 seconds
-- Computing coherence with 100 signals: ~1-2 seconds
-- List signals aggregation: Depends on time range
+```
+Error: --conversation-id required
+Usage: python test_get_conversation.py --conversation-id <id>
+```
 
-## Testing Best Practices
+**Solution**: Some tests need data from other tests
 
-1. **Always create conversation first** - Signals need a conversation_id
-2. **Use timestamps close to now** - Drift calculation uses actual times
-3. **Create multiple signals** - Coherence needs variance to compute
-4. **Test with different window sizes** - Windows affect drift aggregation
-5. **Check database directly** - Verify data persists:
-   ```bash
-   docker compose exec db_service psql -U postgres -d analytics -c \
-     "SELECT COUNT(*) FROM signals;"
-   ```
+```bash
+# First create data
+conversation_id=$(python test_create_conversation.py)
 
-## Next Steps
+# Then test with that ID
+python test_get_conversation.py --conversation-id $conversation_id
+```
 
-After running tests:
+### 404 Errors
 
-1. Review coherence scores
-2. Adjust signal_score values to see coherence changes
-3. Test with real signal sources (Axis, M, Neo, etc.)
-4. Implement Pinecone vector search
-5. Add real-time alerting based on coherence drops
+```
+Expected 200, got 404: {"detail":"Conversation not found"}
+```
 
-## Documentation
+**Solution**: The ID doesn't exist. Create it first or verify it's correct
 
-For more details, see:
-- `README.md` - Full API documentation
-- `API_EXAMPLES.md` - Practical examples and usage patterns
+```bash
+conversation_id=$(python test_create_conversation.py)
+python test_get_conversation.py --conversation-id $conversation_id
+```
+
+## Database Verification
+
+After running tests, verify data in the database:
+
+```bash
+# Connect to database
+docker compose exec -T db_service psql -U time-user -d timescaledb
+
+# List conversations
+SELECT id, title FROM conversations LIMIT 10;
+
+# List signals
+SELECT id, context_window_id, signal_score FROM signals LIMIT 10;
+
+# List users
+SELECT id, name, email FROM users LIMIT 10;
+
+# Check drift metrics (persisted by coherence endpoint)
+SELECT conversation_id, window_start, drift_score FROM signal_drift_metrics LIMIT 10;
+```
+
+## Additional Resources
+
+- **Batch Signals**: See `BATCH_INGESTION_GUIDE.md` for detailed batch API usage
+- **API Examples**: See `../API_EXAMPLES.md` for curl examples
+- **Architecture**: See `../README.md` for system overview
+
+## Notes
+
+- All tests use simple `--argument-name <value>` syntax (no complex modes)
+- Tests are independent - run any test without running others first
+- Tests that create data return the ID for use in other tests
+- Tests that need data take `--conversation-id`, `--user-id`, `--signal-id` arguments
+- All tests print success/failure and exit with status 0 (success) or 1 (failure)

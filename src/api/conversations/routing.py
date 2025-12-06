@@ -2,8 +2,7 @@
 
 from datetime import datetime
 
-from api.signals.coherence_scorer import compute_coherence_from_drift
-from api.signals.drift_calculator import compute_drift_over_windows, parse_window_size
+from api.signals.coherence_service import calculate_and_persist_coherence
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
@@ -89,14 +88,18 @@ def get_coherence(
 ):
     """Get coherence metrics for a conversation.
 
+    This endpoint calculates and persists coherence metrics to the database:
+    
     Parameters:
     - window_size: Time window for drift calculation (e.g., "5m", "1h")
 
     Returns:
-    - Current coherence score
-    - Coherence trend
-    - Drift metrics over sliding windows
+    - Current coherence score (persisted to conversations table)
+    - Coherence trend (persisted to conversations table)
+    - Drift metrics over sliding windows (persisted to signal_drift_metrics table)
     - Signal breakdown by source
+    
+    All metrics are stored in the database for historical analysis.
     """
     # Import here to avoid circular dependency
     from api.signals.models import SignalModel
@@ -111,7 +114,7 @@ def get_coherence(
     signals_query = (
         select(SignalModel)
         .where(SignalModel.context_window_id == conversation_id)
-        .order_by(SignalModel.time.asc())  # type: ignore
+        .order_by(SignalModel.time)  # type: ignore
     )
     signals = session.exec(signals_query).fetchall()
 
@@ -125,43 +128,42 @@ def get_coherence(
             total_signal_count=0,
         )
 
-    # Parse window size (e.g., "5m" -> 300 seconds)
-    window_seconds = parse_window_size(window_size)
+    # Calculate and persist coherence metrics
+    # This function handles:
+    # 1. Calculating drift metrics
+    # 2. Saving drift metrics to signal_drift_metrics table
+    # 3. Calculating coherence score
+    # 4. Saving coherence score to conversations table
+    # 5. Calculating trend (if available)
+    # 6. Saving trend to conversations table
+    result = calculate_and_persist_coherence(
+        conversation_id=conversation_id,
+        signals=signals,
+        window_size=window_size,
+        session=session,
+    )
 
-    # Compute drift metrics over sliding windows
-    drift_metrics_raw = compute_drift_over_windows(signals, window_seconds)
+    # Convert drift metrics to response schema
     drift_metrics = [
         SignalDriftMetricReadSchema(
-            id=0,
+            id=m.get("id", 0),
             conversation_id=conversation_id,
             window_start=m["window_start"],
             window_end=m["window_end"],
             drift_score=m["drift_score"],
             signal_count=m["signal_count"],
-            coherence_trend=None,
+            coherence_trend=m.get("coherence_trend"),
         )
-        for m in drift_metrics_raw
+        for m in result["drift_metrics"]
     ]
-
-    # Count signals by source
-    signal_sources = {}
-    for signal in signals:
-        source = signal.signal_source
-        signal_sources[source] = signal_sources.get(source, 0) + 1
-
-    # Compute overall coherence from drift and signals
-    coherence_score = compute_coherence_from_drift(drift_metrics_raw, signals)
-
-    time_range_start = signals[0].time if signals else None
-    time_range_end = signals[-1].time if signals else None
 
     return CoherenceResponseSchema(
         id=conversation_id,
-        coherence_score_current=coherence_score,
-        coherence_score_trend=None,  # TODO: compute trend
+        coherence_score_current=result["coherence_score_current"],
+        coherence_score_trend=result["coherence_score_trend"],
         drift_metrics=drift_metrics,
-        signal_sources=signal_sources,
-        total_signal_count=len(signals),
-        time_range_start=time_range_start,
-        time_range_end=time_range_end,
+        signal_sources=result["signal_sources"],
+        total_signal_count=result["total_signal_count"],
+        time_range_start=result["time_range_start"],
+        time_range_end=result["time_range_end"],
     )

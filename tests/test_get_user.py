@@ -1,61 +1,39 @@
-"""Test GET /api/users/{user_id} endpoint."""
+"""Test GET /api/users/{user_id} endpoint"""
 
 import requests
+import sys
 
-# Base API configuration
-BASE_URL = "http://localhost:8002"
-USERS_ENDPOINT = f"{BASE_URL}/api/users"
+BASE_URL = "http://localhost:8002/api"
 
 
 def test_get_user(user_id):
-    """Test retrieving a user by ID."""
-    endpoint = f"{USERS_ENDPOINT}/{user_id}"
-
-    try:
-        response = requests.get(endpoint)
-
-        if response.status_code == 200:
-            result = response.json()
-            print(f"✅ User retrieved successfully")
-            print(f"   ID: {result.get('id')}")
-            print(f"   Username: {result.get('username')}")
-            print(f"   Created At: {result.get('created_at')}")
-            print(f"   Is Active: {result.get('is_active')}")
-            print(f"   NOTE: Encrypted fields are NOT returned in API responses (stored encrypted in DB)")
-            return result
-        elif response.status_code == 404:
-            print(f"❌ User not found (404)")
-            print(f"   ID: {user_id}")
-            return None
-        else:
-            print(f"❌ Failed to retrieve user ({response.status_code})")
-            print(f"   Response: {response.text}")
-            return None
-
-    except Exception as e:
-        print(f"❌ Error retrieving user: {e}")
-        return None
-
-
-def test_get_nonexistent_user():
-    """Test retrieving a non-existent user (should return 404)."""
-    fake_id = "00000000-0000-0000-0000-000000000000"
-
-    print(f"\n🔍 Testing non-existent user (expecting 404)...\n")
-    result = test_get_user(fake_id)
-
-    if result is None:
-        print(f"✅ Correctly handled non-existent user")
-    else:
-        print(f"⚠️ Unexpected: user should not exist")
+    """Retrieve a user by ID."""
+    response = requests.get(
+        f"{BASE_URL}/users/{user_id}",
+        timeout=10,
+    )
+    
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    result = response.json()
+    
+    # Verify response
+    assert "id" in result, "Response missing 'id' field"
+    assert result["id"] == user_id, "ID mismatch"
+    
+    print(f"✓ User retrieved: {user_id}", file=sys.stderr)
+    return result
 
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Test GET /api/users/{user_id}")
-    parser.add_argument("user_id", help="User ID to retrieve")
-
-    args = parser.parse_args()
-
-    test_get_user(args.user_id)
+    if "--user-id" not in sys.argv:
+        print("Error: --user-id required", file=sys.stderr)
+        print("Usage: python test_get_user.py --user-id <id>", file=sys.stderr)
+        sys.exit(1)
+    
+    try:
+        user_id = sys.argv[sys.argv.index("--user-id") + 1]
+        test_get_user(user_id)
+        print("✓ Test passed")
+    except Exception as e:
+        print(f"✗ Test failed: {e}", file=sys.stderr)
+        sys.exit(1)

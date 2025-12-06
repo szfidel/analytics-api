@@ -7,7 +7,14 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 from timescaledb.hyperfunctions import time_bucket
 
-from .models import SignalBucketSchema, SignalCreateSchema, SignalModel
+from .models import (
+    SignalBucketSchema,
+    SignalCreateSchema,
+    SignalModel,
+    SignalBatchSchema,
+    SignalBatchResponseSchema,
+    SignalBatchItemResponse,
+)
 
 router = APIRouter()
 
@@ -106,6 +113,89 @@ def get_signal(signal_id: int, session: Session = Depends(get_db_session)):
     if not result:
         raise HTTPException(status_code=404, detail="Signal not found")
     return result
+
+
+# POST /api/signals/batch
+@router.post("/batch", response_model=SignalBatchResponseSchema)
+def create_signals_batch(
+    batch: SignalBatchSchema,
+    session: Session = Depends(get_db_session),
+):
+    """Create multiple signals in a single batch transaction.
+    
+    Supports two modes:
+    - fail_on_error=True: All-or-nothing ACID semantics (rollback on first error)
+    - fail_on_error=False: Best-effort (continue processing, report errors)
+    
+    Parameters:
+    - signals: List of signal objects to create
+    - fail_on_error: If True, rollback entire batch on first error
+    
+    Returns detailed results for each signal with success/error status.
+    """
+    results: list[SignalBatchItemResponse] = []
+    successful_count = 0
+    failed_count = 0
+    
+    try:
+        for index, signal_data in enumerate(batch.signals):
+            try:
+                # Convert payload dict to JSON string if present
+                data = signal_data.model_dump()
+                if data.get("payload") is not None:
+                    data["payload"] = json.dumps(data["payload"])
+                
+                # Create and persist signal
+                obj = SignalModel.model_validate(data)
+                session.add(obj)
+                session.flush()  # Flush to get the ID without committing
+                
+                results.append(
+                    SignalBatchItemResponse(
+                        index=index,
+                        success=True,
+                        signal_id=obj.id,
+                    )
+                )
+                successful_count += 1
+                
+            except Exception as e:
+                failed_count += 1
+                error_msg = str(e)
+                results.append(
+                    SignalBatchItemResponse(
+                        index=index,
+                        success=False,
+                        error=error_msg,
+                    )
+                )
+                
+                # If fail_on_error is True, rollback entire batch
+                if batch.fail_on_error:
+                    session.rollback()
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Batch failed at index {index}: {error_msg}. No signals were created."
+                    )
+        
+        # Commit all successful signals
+        session.commit()
+        
+        return SignalBatchResponseSchema(
+            total_count=len(batch.signals),
+            successful_count=successful_count,
+            failed_count=failed_count,
+            results=results,
+        )
+        
+    except HTTPException:
+        raise  # Re-raise HTTPException from fail_on_error mode
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error during batch processing: {str(e)}"
+        )
 
 
 # GET /api/signals/conversation/{context_window_id}
